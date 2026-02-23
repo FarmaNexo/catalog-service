@@ -17,6 +17,7 @@ import (
 	"github.com/farmanexo/catalog-service/internal/application/validators"
 	"github.com/farmanexo/catalog-service/internal/presentation/dto/responses"
 	"github.com/farmanexo/catalog-service/internal/infrastructure/cache"
+	"github.com/farmanexo/catalog-service/internal/infrastructure/clients"
 	"github.com/farmanexo/catalog-service/internal/infrastructure/messaging"
 	"github.com/farmanexo/catalog-service/internal/infrastructure/persistence/postgres"
 	"github.com/farmanexo/catalog-service/internal/infrastructure/security"
@@ -95,6 +96,9 @@ func main() {
 	brandRepo := postgres.NewBrandRepository(db, logger)
 	imageRepo := postgres.NewProductImageRepository(db, logger)
 
+	interactionRepo := postgres.NewDrugInteractionRepository(db, logger)
+	fbtRepo := postgres.NewFBTRepository(db, logger)
+
 	// ========================================
 	// SERVICIOS
 	// ========================================
@@ -120,6 +124,9 @@ func main() {
 	defer redisClient.Close()
 
 	cacheService := cache.NewRedisCacheService(redisClient, logger)
+
+	// Pharmacy Client
+	pharmacyClient := clients.NewPharmacyClient(cfg.Services.PharmacyService.BaseURL, logger)
 
 	// ========================================
 	// MEDIATOR
@@ -149,6 +156,30 @@ func main() {
 
 	uploadImagesHandler := handlers.NewUploadProductImagesHandler(productRepo, imageRepo, fileStorage, cacheService, cfg.S3.ProductsBucket, logger)
 	mediator.RegisterHandler(med, uploadImagesHandler)
+
+	getProductByBarcodeHandler := handlers.NewGetProductByBarcodeHandler(productRepo, cacheService, logger)
+	mediator.RegisterHandler(med, getProductByBarcodeHandler)
+
+	// ========================================
+	// HANDLERS - Drug Interactions
+	// ========================================
+	listDrugInteractionsHandler := handlers.NewListDrugInteractionsHandler(interactionRepo, productRepo, cacheService, logger)
+	mediator.RegisterHandler(med, listDrugInteractionsHandler)
+
+	createDrugInteractionHandler := handlers.NewCreateDrugInteractionHandler(interactionRepo, productRepo, cacheService, logger)
+	mediator.RegisterHandler(med, createDrugInteractionHandler)
+
+	// ========================================
+	// HANDLERS - Frequently Bought Together
+	// ========================================
+	listFBTHandler := handlers.NewListFBTHandler(fbtRepo, productRepo, cacheService, logger)
+	mediator.RegisterHandler(med, listFBTHandler)
+
+	// ========================================
+	// HANDLERS - Availability
+	// ========================================
+	getProductAvailabilityHandler := handlers.NewGetProductAvailabilityHandler(productRepo, pharmacyClient, cacheService, logger)
+	mediator.RegisterHandler(med, getProductAvailabilityHandler)
 
 	// ========================================
 	// HANDLERS - Categories
@@ -205,7 +236,7 @@ func main() {
 	med.RegisterPostProcessor(auditPostProcessor)
 
 	logger.Info("Mediator configurado",
-		zap.Int("handlers", 16),
+		zap.Int("handlers", 21),
 		zap.Int("validators", 3),
 		zap.Int("preprocessors", 1),
 		zap.Int("postprocessors", 1),

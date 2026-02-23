@@ -35,6 +35,7 @@ type ProductRepository interface {
 	FindByIDWithDeleted(ctx context.Context, id string) (*entities.Product, error)
 	FindBySlug(ctx context.Context, slug string) (*entities.Product, error)
 	FindBySKU(ctx context.Context, sku string) (*entities.Product, error)
+	FindByBarcode(ctx context.Context, barcode string) (*entities.Product, error)
 	Update(ctx context.Context, product *entities.Product) error
 	SoftDelete(ctx context.Context, id string) error
 	List(ctx context.Context, page, limit int, sort string) (*PaginatedResult, error)

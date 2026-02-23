@@ -154,6 +154,26 @@ func (c *CatalogController) SearchProducts(w http.ResponseWriter, r *http.Reques
 	c.respondJSON(w, response)
 }
 
+// GetProductByBarcode godoc
+// @Summary      Obtener producto por código de barras
+// @Description  Busca un producto por su código de barras (cacheado, 1hr TTL)
+// @Tags         Products
+// @Produce      json
+// @Param        barcode  path     string  true  "Código de barras"
+// @Success      200  {object}  common.ApiResponse[responses.ProductResponse]
+// @Failure      404  {object}  common.ApiResponse[responses.ProductResponse]
+// @Router       /api/v1/products/barcode/{barcode} [get]
+func (c *CatalogController) GetProductByBarcode(w http.ResponseWriter, r *http.Request) {
+	barcode := chi.URLParam(r, "barcode")
+
+	query := queries.GetProductByBarcodeQuery{
+		Barcode: barcode,
+	}
+
+	response, _ := mediator.Send[queries.GetProductByBarcodeQuery, responses.ProductResponse](r.Context(), c.mediator, query)
+	c.respondJSON(w, response)
+}
+
 // ========================================
 // PRODUCTOS - ENDPOINTS ADMIN
 // ========================================
@@ -310,6 +330,113 @@ func (c *CatalogController) UploadProductImages(w http.ResponseWriter, r *http.R
 	}
 
 	response, _ := mediator.Send[commands.UploadProductImagesCommand, responses.ImageListResponse](r.Context(), c.mediator, cmd)
+	c.respondJSON(w, response)
+}
+
+// ========================================
+// DISPONIBILIDAD EN FARMACIAS
+// ========================================
+
+// GetProductAvailability godoc
+// @Summary      Disponibilidad en farmacias
+// @Description  Consulta la disponibilidad y precio de un producto en las farmacias registradas (cacheado, 5min TTL)
+// @Tags         Products
+// @Produce      json
+// @Param        id   path     string  true  "Product ID"
+// @Success      200  {object}  common.ApiResponse[responses.AvailabilityResponse]
+// @Failure      404  {object}  common.ApiResponse[responses.AvailabilityResponse]
+// @Router       /api/v1/products/{id}/availability [get]
+func (c *CatalogController) GetProductAvailability(w http.ResponseWriter, r *http.Request) {
+	productID := chi.URLParam(r, "id")
+
+	query := queries.GetProductAvailabilityQuery{
+		ProductID: productID,
+	}
+
+	response, _ := mediator.Send[queries.GetProductAvailabilityQuery, responses.AvailabilityResponse](r.Context(), c.mediator, query)
+	c.respondJSON(w, response)
+}
+
+// ========================================
+// PRODUCTOS FRECUENTEMENTE COMPRADOS JUNTOS
+// ========================================
+
+// ListFrequentlyBoughtTogether godoc
+// @Summary      Productos frecuentemente comprados juntos
+// @Description  Retorna productos que se compran frecuentemente junto con el producto dado (cacheado, 6hr TTL)
+// @Tags         Products
+// @Produce      json
+// @Param        id     path     string  true   "Product ID"
+// @Param        limit  query    int     false  "Límite de resultados" default(10)
+// @Success      200  {object}  common.ApiResponse[responses.FBTListResponse]
+// @Failure      404  {object}  common.ApiResponse[responses.FBTListResponse]
+// @Router       /api/v1/products/{id}/frequently-bought-together [get]
+func (c *CatalogController) ListFrequentlyBoughtTogether(w http.ResponseWriter, r *http.Request) {
+	productID := chi.URLParam(r, "id")
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	query := queries.ListFBTQuery{
+		ProductID: productID,
+		Limit:     limit,
+	}
+
+	response, _ := mediator.Send[queries.ListFBTQuery, responses.FBTListResponse](r.Context(), c.mediator, query)
+	c.respondJSON(w, response)
+}
+
+// ========================================
+// INTERACCIONES MEDICAMENTOSAS
+// ========================================
+
+// ListDrugInteractions godoc
+// @Summary      Listar interacciones medicamentosas
+// @Description  Retorna las interacciones medicamentosas de un producto (cacheado, 24hr TTL)
+// @Tags         Products
+// @Produce      json
+// @Param        id   path     string  true  "Product ID"
+// @Success      200  {object}  common.ApiResponse[responses.InteractionListResponse]
+// @Failure      404  {object}  common.ApiResponse[responses.InteractionListResponse]
+// @Router       /api/v1/products/{id}/interactions [get]
+func (c *CatalogController) ListDrugInteractions(w http.ResponseWriter, r *http.Request) {
+	productID := chi.URLParam(r, "id")
+
+	query := queries.ListDrugInteractionsQuery{
+		ProductID: productID,
+	}
+
+	response, _ := mediator.Send[queries.ListDrugInteractionsQuery, responses.InteractionListResponse](r.Context(), c.mediator, query)
+	c.respondJSON(w, response)
+}
+
+// CreateDrugInteraction godoc
+// @Summary      Crear interacción medicamentosa
+// @Description  Registra una nueva interacción entre dos productos (requiere rol admin)
+// @Tags         Products
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body     requests.CreateInteractionRequest  true  "Datos de la interacción"
+// @Success      201  {object}  common.ApiResponse[responses.InteractionResponse]
+// @Failure      400  {object}  common.ApiResponse[responses.InteractionResponse]
+// @Failure      404  {object}  common.ApiResponse[responses.InteractionResponse]
+// @Failure      409  {object}  common.ApiResponse[responses.InteractionResponse]
+// @Router       /api/v1/products/interactions [post]
+func (c *CatalogController) CreateDrugInteraction(w http.ResponseWriter, r *http.Request) {
+	var req requests.CreateInteractionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		c.respondJSON(w, common.BadRequestResponse[responses.InteractionResponse]("VAL_001", "Body inválido"))
+		return
+	}
+
+	cmd := commands.CreateDrugInteractionCommand{
+		ProductID:              req.ProductID,
+		InteractsWithProductID: req.InteractsWithProductID,
+		Severity:               req.Severity,
+		Description:            req.Description,
+		Recommendation:         req.Recommendation,
+	}
+
+	response, _ := mediator.Send[commands.CreateDrugInteractionCommand, responses.InteractionResponse](r.Context(), c.mediator, cmd)
 	c.respondJSON(w, response)
 }
 

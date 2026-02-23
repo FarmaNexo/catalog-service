@@ -11,15 +11,26 @@ import (
 
 // Config representa toda la configuración del servicio
 type Config struct {
-	Environment string         `mapstructure:"environment"`
-	Server      ServerConfig   `mapstructure:"server"`
-	Database    DatabaseConfig `mapstructure:"database"`
-	JWT         JWTConfig      `mapstructure:"jwt"`
-	Redis       RedisConfig    `mapstructure:"redis"`
-	AWS         AWSConfig      `mapstructure:"aws"`
-	SQS         SQSConfig      `mapstructure:"sqs"`
-	S3          S3Config       `mapstructure:"s3"`
-	Log         LogConfig      `mapstructure:"log"`
+	Environment string          `mapstructure:"environment"`
+	Server      ServerConfig    `mapstructure:"server"`
+	Database    DatabaseConfig  `mapstructure:"database"`
+	JWT         JWTConfig       `mapstructure:"jwt"`
+	Redis       RedisConfig     `mapstructure:"redis"`
+	AWS         AWSConfig       `mapstructure:"aws"`
+	SQS         SQSConfig       `mapstructure:"sqs"`
+	S3          S3Config        `mapstructure:"s3"`
+	Log         LogConfig       `mapstructure:"log"`
+	Services    ServicesConfig  `mapstructure:"services"`
+}
+
+// ServicesConfig configuración de servicios externos
+type ServicesConfig struct {
+	PharmacyService PharmacyServiceConfig `mapstructure:"pharmacy_service"`
+}
+
+// PharmacyServiceConfig configuración del Pharmacy Service
+type PharmacyServiceConfig struct {
+	BaseURL string `mapstructure:"base_url"`
 }
 
 // ServerConfig configuración del servidor HTTP

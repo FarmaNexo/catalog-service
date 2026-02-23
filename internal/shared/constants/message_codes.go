@@ -27,6 +27,11 @@ const (
 	CodeBrandsListed       MessageCode = "CAT_013"
 	CodeImagesUploaded     MessageCode = "CAT_014"
 	CodeSearchCompleted    MessageCode = "CAT_015"
+	CodeBarcodeRetrieved   MessageCode = "CAT_016"
+	CodeInteractionsListed MessageCode = "CAT_017"
+	CodeInteractionCreated MessageCode = "CAT_018"
+	CodeFBTListed          MessageCode = "CAT_019"
+	CodeAvailabilityRetrieved MessageCode = "CAT_020"
 
 	// Validation errors
 	CodeValidationError  MessageCode = "VAL_001"
@@ -49,7 +54,9 @@ const (
 	CodeResourceNotFound   MessageCode = "BUS_003"
 	CodeBrandNotFound      MessageCode = "BUS_005"
 	CodeSlugAlreadyExists  MessageCode = "BUS_006"
-	CodeSKUAlreadyExists   MessageCode = "BUS_007"
+	CodeSKUAlreadyExists       MessageCode = "BUS_007"
+	CodeInteractionNotFound    MessageCode = "BUS_008"
+	CodeBarcodeNotFound        MessageCode = "BUS_009"
 
 	// Rate limiting
 	CodeRateLimitExceeded MessageCode = "RATE_001"
@@ -84,8 +91,13 @@ var MessageDescription = map[MessageCode]string{
 	CodeBrandCreated:      "Marca creada exitosamente",
 	CodeBrandUpdated:      "Marca actualizada exitosamente",
 	CodeBrandsListed:      "Marcas listadas exitosamente",
-	CodeImagesUploaded:    "Imágenes subidas exitosamente",
-	CodeSearchCompleted:   "Búsqueda completada exitosamente",
+	CodeImagesUploaded:        "Imágenes subidas exitosamente",
+	CodeSearchCompleted:       "Búsqueda completada exitosamente",
+	CodeBarcodeRetrieved:      "Producto obtenido por código de barras exitosamente",
+	CodeInteractionsListed:    "Interacciones listadas exitosamente",
+	CodeInteractionCreated:    "Interacción creada exitosamente",
+	CodeFBTListed:             "Productos frecuentemente comprados juntos listados exitosamente",
+	CodeAvailabilityRetrieved: "Disponibilidad obtenida exitosamente",
 
 	// Validation
 	CodeValidationError: "Error de validación",
@@ -107,8 +119,10 @@ var MessageDescription = map[MessageCode]string{
 	CodeCategoryNotFound:  "Categoría no encontrada",
 	CodeResourceNotFound:  "Recurso no encontrado",
 	CodeBrandNotFound:     "Marca no encontrada",
-	CodeSlugAlreadyExists: "El slug ya existe",
-	CodeSKUAlreadyExists:  "El SKU ya existe",
+	CodeSlugAlreadyExists:      "El slug ya existe",
+	CodeSKUAlreadyExists:       "El SKU ya existe",
+	CodeInteractionNotFound:    "Interacción no encontrada",
+	CodeBarcodeNotFound:        "Producto no encontrado con el código de barras proporcionado",
 
 	// Rate limiting
 	CodeRateLimitExceeded: "Demasiadas solicitudes. Intente nuevamente más tarde",

@@ -42,6 +42,10 @@ sqs:
 s3:
   products_bucket: "farmanexo-products"
 
+services:
+  pharmacy_service:
+    base_url: ${PHARMACY_SERVICE_URL}
+
 log:
   level: info
   encoding: json

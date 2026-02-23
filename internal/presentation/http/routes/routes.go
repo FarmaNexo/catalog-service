@@ -66,7 +66,11 @@ func SetupRoutes(
 		r.Route("/products", func(r chi.Router) {
 			r.Get("/", catalogController.ListProducts)
 			r.Post("/search", catalogController.SearchProducts)
+			r.Get("/barcode/{barcode}", catalogController.GetProductByBarcode)
 			r.Get("/{id}", catalogController.GetProduct)
+			r.Get("/{id}/interactions", catalogController.ListDrugInteractions)
+			r.Get("/{id}/frequently-bought-together", catalogController.ListFrequentlyBoughtTogether)
+			r.Get("/{id}/availability", catalogController.GetProductAvailability)
 
 			// Endpoints protegidos (Admin)
 			r.Group(func(r chi.Router) {
@@ -77,6 +81,7 @@ func SetupRoutes(
 				r.Put("/{id}", catalogController.UpdateProduct)
 				r.Delete("/{id}", catalogController.DeleteProduct)
 				r.Put("/{id}/images", catalogController.UploadProductImages)
+				r.Post("/interactions", catalogController.CreateDrugInteraction)
 			})
 		})
 

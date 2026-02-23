@@ -75,6 +75,22 @@ func (r *ProductRepositoryImpl) FindBySKU(ctx context.Context, sku string) (*ent
 	return &product, nil
 }
 
+func (r *ProductRepositoryImpl) FindByBarcode(ctx context.Context, barcode string) (*entities.Product, error) {
+	var product entities.Product
+	err := r.db.WithContext(ctx).
+		Where("barcode = ? AND deleted_at IS NULL", barcode).
+		Preload("Category").
+		Preload("Brand").
+		Preload("Images", func(db *gorm.DB) *gorm.DB {
+			return db.Order("display_order ASC")
+		}).
+		First(&product).Error
+	if err != nil {
+		return nil, err
+	}
+	return &product, nil
+}
+
 func (r *ProductRepositoryImpl) Update(ctx context.Context, product *entities.Product) error {
 	return r.db.WithContext(ctx).Save(product).Error
 }

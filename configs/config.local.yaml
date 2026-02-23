@@ -42,6 +42,10 @@ sqs:
 s3:
   products_bucket: "farmanexo-products"
 
+services:
+  pharmacy_service:
+    base_url: "http://localhost:4004"
+
 log:
   level: debug
   encoding: console
