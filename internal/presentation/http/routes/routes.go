@@ -52,7 +52,7 @@ func SetupRoutes(
 	// HEALTH CHECK
 	// ========================================
 
-	r.Get("/health", catalogController.HealthCheck)
+	r.Get("/products/health", catalogController.HealthCheck)
 	r.Get("/", catalogController.HealthCheck)
 
 	// ========================================
