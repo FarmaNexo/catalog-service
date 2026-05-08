@@ -14,6 +14,10 @@ type Product struct {
 	ActiveIngredient     string     `gorm:"column:active_ingredient;type:varchar(500)" json:"active_ingredient"`
 	Presentation         string     `gorm:"column:presentation;type:varchar(255)" json:"presentation"`
 	Concentration        string     `gorm:"column:concentration;type:varchar(100)" json:"concentration"`
+	Form                 string     `gorm:"column:form;type:varchar(100)" json:"form"`
+	RegistryNumber       string     `gorm:"column:registry_number;type:varchar(50)" json:"registry_number"`
+	Manufacturer         string     `gorm:"column:manufacturer;type:varchar(500)" json:"manufacturer"`
+	SourceProductCode    *int       `gorm:"column:source_product_code" json:"source_product_code,omitempty"`
 	RequiresPrescription bool       `gorm:"column:requires_prescription;not null;default:false" json:"requires_prescription"`
 	CategoryID           *string    `gorm:"column:category_id;type:uuid" json:"category_id"`
 	BrandID              *string    `gorm:"column:brand_id;type:uuid" json:"brand_id"`

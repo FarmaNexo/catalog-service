@@ -123,6 +123,30 @@ func (c *CatalogController) GetProduct(w http.ResponseWriter, r *http.Request) {
 	c.respondJSON(w, response)
 }
 
+// GetProductBySlug godoc
+// @Summary      Obtener producto por slug
+// @Description  Retorna el detalle de un producto usando su slug SEO-friendly
+// @Tags         Products
+// @Accept       json
+// @Produce      json
+// @Param        slug   path     string  true  "Product slug"
+// @Success      200  {object}  common.ApiResponse[responses.ProductResponse]
+// @Failure      404  {object}  common.ApiResponse[responses.ProductResponse]
+// @Router       /api/v1/products/slug/{slug} [get]
+func (c *CatalogController) GetProductBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+
+	_, isAdmin := middlewares.GetUserRoleFromContext(r.Context())
+
+	query := queries.GetProductBySlugQuery{
+		Slug:    slug,
+		IsAdmin: isAdmin,
+	}
+
+	response, _ := mediator.Send[queries.GetProductBySlugQuery, responses.ProductResponse](r.Context(), c.mediator, query)
+	c.respondJSON(w, response)
+}
+
 // SearchProducts godoc
 // @Summary      Búsqueda avanzada de productos
 // @Description  Busca productos por nombre, ingrediente activo, categoría, marca
@@ -144,6 +168,8 @@ func (c *CatalogController) SearchProducts(w http.ResponseWriter, r *http.Reques
 		Query:                req.Query,
 		CategoryID:           req.CategoryID,
 		BrandID:              req.BrandID,
+		ActiveIngredient:     req.ActiveIngredient,
+		ExcludeID:            req.ExcludeID,
 		RequiresPrescription: req.RequiresPrescription,
 		Page:                 req.Page,
 		Limit:                req.Limit,
@@ -206,6 +232,10 @@ func (c *CatalogController) CreateProduct(w http.ResponseWriter, r *http.Request
 		ActiveIngredient:     req.ActiveIngredient,
 		Presentation:         req.Presentation,
 		Concentration:        req.Concentration,
+		Form:                 req.Form,
+		RegistryNumber:       req.RegistryNumber,
+		Manufacturer:         req.Manufacturer,
+		SourceProductCode:    req.SourceProductCode,
 		RequiresPrescription: req.RequiresPrescription,
 		CategoryID:           req.CategoryID,
 		BrandID:              req.BrandID,
@@ -247,6 +277,10 @@ func (c *CatalogController) UpdateProduct(w http.ResponseWriter, r *http.Request
 		ActiveIngredient:     req.ActiveIngredient,
 		Presentation:         req.Presentation,
 		Concentration:        req.Concentration,
+		Form:                 req.Form,
+		RegistryNumber:       req.RegistryNumber,
+		Manufacturer:         req.Manufacturer,
+		SourceProductCode:    req.SourceProductCode,
 		RequiresPrescription: req.RequiresPrescription,
 		CategoryID:           req.CategoryID,
 		BrandID:              req.BrandID,
@@ -339,10 +373,13 @@ func (c *CatalogController) UploadProductImages(w http.ResponseWriter, r *http.R
 
 // GetProductAvailability godoc
 // @Summary      Disponibilidad en farmacias
-// @Description  Consulta la disponibilidad y precio de un producto en las farmacias registradas (cacheado, 5min TTL)
+// @Description  Consulta la disponibilidad y precio de un producto en las farmacias registradas (cacheado, 5min TTL). Sin lat/lng → orden por precio. Con lat/lng → incluye distance_km y orden por cercanía. radius_km opcional filtra por radio.
 // @Tags         Products
 // @Produce      json
-// @Param        id   path     string  true  "Product ID"
+// @Param        id          path     string   true   "Product ID"
+// @Param        lat         query    number   false  "Latitud del usuario (HU-014)"
+// @Param        lng         query    number   false  "Longitud del usuario (HU-014)"
+// @Param        radius_km   query    number   false  "Radio en km (1–100). Solo se aplica si lat y lng están presentes"
 // @Success      200  {object}  common.ApiResponse[responses.AvailabilityResponse]
 // @Failure      404  {object}  common.ApiResponse[responses.AvailabilityResponse]
 // @Router       /api/v1/products/{id}/availability [get]
@@ -353,8 +390,38 @@ func (c *CatalogController) GetProductAvailability(w http.ResponseWriter, r *htt
 		ProductID: productID,
 	}
 
+	// HU-014: geolocalización opcional. Sanitización al boundary —
+	// validamos rangos y solo aplicamos si lat+lng son válidos.
+	if lat, ok := parseFloatQuery(r, "lat", -90, 90); ok {
+		if lng, ok := parseFloatQuery(r, "lng", -180, 180); ok {
+			query.Latitude = lat
+			query.Longitude = lng
+			if radius, ok := parseFloatQuery(r, "radius_km", 0.0001, 100); ok {
+				query.RadiusKm = radius
+			}
+		}
+	}
+
 	response, _ := mediator.Send[queries.GetProductAvailabilityQuery, responses.AvailabilityResponse](r.Context(), c.mediator, query)
 	c.respondJSON(w, response)
+}
+
+// parseFloatQuery lee un query param float dentro del rango [min,max]
+// inclusive. Devuelve (0, false) si el param falta, no parsea, o sale del
+// rango — el endpoint debe ignorar valores inválidos sin romper.
+func parseFloatQuery(r *http.Request, key string, min, max float64) (float64, bool) {
+	raw := r.URL.Query().Get(key)
+	if raw == "" {
+		return 0, false
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, false
+	}
+	if v < min || v > max {
+		return 0, false
+	}
+	return v, true
 }
 
 // ========================================

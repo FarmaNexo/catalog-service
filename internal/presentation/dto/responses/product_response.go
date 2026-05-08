@@ -14,6 +14,10 @@ type ProductResponse struct {
 	ActiveIngredient     string          `json:"active_ingredient"`
 	Presentation         string          `json:"presentation"`
 	Concentration        string          `json:"concentration"`
+	Form                 string          `json:"form,omitempty"`
+	RegistryNumber       string          `json:"registry_number,omitempty"`
+	Manufacturer         string          `json:"manufacturer,omitempty"`
+	SourceProductCode    *int            `json:"source_product_code,omitempty"`
 	RequiresPrescription bool            `json:"requires_prescription"`
 	CategoryID           string          `json:"category_id,omitempty"`
 	CategoryName         string          `json:"category_name,omitempty"`
@@ -46,6 +50,10 @@ func ToProductResponse(p *entities.Product) ProductResponse {
 		ActiveIngredient:     p.ActiveIngredient,
 		Presentation:         p.Presentation,
 		Concentration:        p.Concentration,
+		Form:                 p.Form,
+		RegistryNumber:       p.RegistryNumber,
+		Manufacturer:         p.Manufacturer,
+		SourceProductCode:    p.SourceProductCode,
 		RequiresPrescription: p.RequiresPrescription,
 		SKU:                  p.SKU,
 		Barcode:              p.Barcode,

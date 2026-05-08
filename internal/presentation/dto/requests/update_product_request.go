@@ -9,6 +9,10 @@ type UpdateProductRequest struct {
 	ActiveIngredient     string `json:"active_ingredient,omitempty"`
 	Presentation         string `json:"presentation,omitempty"`
 	Concentration        string `json:"concentration,omitempty"`
+	Form                 string `json:"form,omitempty"`
+	RegistryNumber       string `json:"registry_number,omitempty"`
+	Manufacturer         string `json:"manufacturer,omitempty"`
+	SourceProductCode    *int   `json:"source_product_code,omitempty"`
 	RequiresPrescription bool   `json:"requires_prescription"`
 	CategoryID           string `json:"category_id,omitempty"`
 	BrandID              string `json:"brand_id,omitempty"`

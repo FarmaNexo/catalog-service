@@ -157,6 +157,18 @@ func (r *ProductRepositoryImpl) Search(ctx context.Context, params repositories.
 		query = query.Where("brand_id = ?", params.BrandID)
 	}
 
+	// Búsqueda por DCI: case-insensitive exacta. Permite encontrar alternativas terapéuticas
+	// (productos con el mismo principio activo, sean genéricos o de marca).
+	if params.ActiveIngredient != "" {
+		query = query.Where("UPPER(active_ingredient) = UPPER(?)", params.ActiveIngredient)
+	}
+
+	// Excluir un producto específico de los resultados (HU-015: no mostrar el mismo producto
+	// como su propia alternativa).
+	if params.ExcludeID != "" {
+		query = query.Where("id <> ?", params.ExcludeID)
+	}
+
 	if params.RequiresPrescription != nil {
 		query = query.Where("requires_prescription = ?", *params.RequiresPrescription)
 	}

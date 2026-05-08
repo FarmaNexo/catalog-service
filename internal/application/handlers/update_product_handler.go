@@ -98,6 +98,18 @@ func (h *UpdateProductHandler) Handle(ctx context.Context, cmd commands.UpdatePr
 	if cmd.Concentration != "" {
 		product.Concentration = cmd.Concentration
 	}
+	if cmd.Form != "" {
+		product.Form = cmd.Form
+	}
+	if cmd.RegistryNumber != "" {
+		product.RegistryNumber = cmd.RegistryNumber
+	}
+	if cmd.Manufacturer != "" {
+		product.Manufacturer = cmd.Manufacturer
+	}
+	if cmd.SourceProductCode != nil {
+		product.SourceProductCode = cmd.SourceProductCode
+	}
 	product.RequiresPrescription = cmd.RequiresPrescription
 	product.IsActive = cmd.IsActive
 	if cmd.Barcode != "" {

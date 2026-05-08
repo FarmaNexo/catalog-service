@@ -12,6 +12,8 @@ type ProductSearchParams struct {
 	Query                string
 	CategoryID           string
 	BrandID              string
+	ActiveIngredient     string // Búsqueda exacta por DCI (Denominación Común Internacional)
+	ExcludeID            string // Excluir un producto específico (útil para alternativas)
 	RequiresPrescription *bool
 	IsActive             *bool
 	Page                 int

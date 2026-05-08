@@ -4,6 +4,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/farmanexo/catalog-service/internal/application/queries"
@@ -47,8 +48,11 @@ func (h *GetProductAvailabilityHandler) Handle(ctx context.Context, query querie
 		return common.NotFoundResponse[responses.AvailabilityResponse]("Producto no encontrado"), nil
 	}
 
-	// Try cache first (short TTL: 5 minutes)
-	cacheKey := "cache:product:" + query.ProductID + ":availability"
+	geo := services.AvailabilityGeo{Lat: query.Latitude, Lng: query.Longitude, RadiusKm: query.RadiusKm}
+
+	// Try cache first (short TTL: 5 minutes). Bucket geo a 3 decimales (~110m)
+	// para evitar explosión de claves cuando la geo del browser oscila.
+	cacheKey := buildAvailabilityCacheKey(query.ProductID, geo)
 	if cached, err := h.cacheService.Get(ctx, cacheKey); err == nil && cached != "" {
 		var availResp responses.AvailabilityResponse
 		if err := json.Unmarshal([]byte(cached), &availResp); err == nil {
@@ -58,7 +62,7 @@ func (h *GetProductAvailabilityHandler) Handle(ctx context.Context, query querie
 	}
 
 	// Call Pharmacy Service
-	items, err := h.pharmacyClient.GetProductAvailability(ctx, query.ProductID)
+	items, err := h.pharmacyClient.GetProductAvailability(ctx, query.ProductID, geo)
 	if err != nil {
 		h.logger.Warn("Error consultando disponibilidad en Pharmacy Service",
 			zap.String("product_id", query.ProductID),
@@ -77,11 +81,18 @@ func (h *GetProductAvailabilityHandler) Handle(ctx context.Context, query querie
 	pharmacies := make([]responses.PharmacyAvailability, len(items))
 	for i, item := range items {
 		pharmacies[i] = responses.PharmacyAvailability{
-			PharmacyID:   item.PharmacyID,
-			PharmacyName: item.PharmacyName,
-			Stock:        item.Stock,
-			Price:        item.Price,
-			IsAvailable:  item.IsAvailable,
+			PharmacyID:       item.PharmacyID,
+			PharmacySlug:     item.PharmacySlug,
+			PharmacyName:     item.PharmacyName,
+			PharmacyDistrict: item.PharmacyDistrict,
+			PharmacyAddress:  item.PharmacyAddress,
+			Stock:            item.Stock,
+			Price:            item.Price,
+			IsAvailable:      item.IsAvailable,
+			DistanceKm:       item.DistanceKm,
+			DistrictAvgPrice: item.DistrictAvgPrice,
+			IsOverpriced:     item.IsOverpriced,
+			OverpricePct:     item.OverpricePct,
 		}
 	}
 
@@ -100,6 +111,14 @@ func (h *GetProductAvailabilityHandler) Handle(ctx context.Context, query querie
 	}
 
 	return common.OkResponse(availResp), nil
+}
+
+func buildAvailabilityCacheKey(productID string, geo services.AvailabilityGeo) string {
+	if !geo.IsActive() {
+		return "cache:product:" + productID + ":availability"
+	}
+	return fmt.Sprintf("cache:product:%s:availability:geo:%.3f:%.3f:%.1f",
+		productID, geo.Lat, geo.Lng, geo.RadiusKm)
 }
 
 var _ mediator.RequestHandler[queries.GetProductAvailabilityQuery, responses.AvailabilityResponse] = (*GetProductAvailabilityHandler)(nil)

@@ -68,6 +68,7 @@ func SetupRoutes(
 			r.Get("/", catalogController.ListProducts)
 			r.Post("/search", catalogController.SearchProducts)
 			r.Get("/barcode/{barcode}", catalogController.GetProductByBarcode)
+			r.Get("/slug/{slug}", catalogController.GetProductBySlug)
 			r.Get("/{id}", catalogController.GetProduct)
 			r.Get("/{id}/interactions", catalogController.ListDrugInteractions)
 			r.Get("/{id}/frequently-bought-together", catalogController.ListFrequentlyBoughtTogether)

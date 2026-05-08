@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	neturl "net/url"
+	"strconv"
 	"time"
 
 	"github.com/farmanexo/catalog-service/internal/domain/services"
@@ -36,18 +38,35 @@ type pharmacyInventoryResponse struct {
 	} `json:"meta"`
 	Data struct {
 		Items []struct {
-			PharmacyID   string  `json:"pharmacy_id"`
-			PharmacyName string  `json:"pharmacy_name"`
-			ProductID    string  `json:"product_id"`
-			Stock        int     `json:"stock"`
-			Price        float64 `json:"price"`
-			IsAvailable  bool    `json:"is_available"`
+			PharmacyID       string   `json:"pharmacy_id"`
+			PharmacySlug     string   `json:"pharmacy_slug"`
+			PharmacyName     string   `json:"pharmacy_name"`
+			PharmacyDistrict string   `json:"pharmacy_district"`
+			PharmacyAddress  string   `json:"pharmacy_address"`
+			ProductID        string   `json:"product_id"`
+			Stock            int      `json:"stock"`
+			Price            float64  `json:"price"`
+			IsAvailable      bool     `json:"is_available"`
+			DistanceKm       *float64 `json:"distance_km,omitempty"`
+			DistrictAvgPrice *float64 `json:"district_avg_price,omitempty"`
+			IsOverpriced     bool     `json:"is_overpriced"`
+			OverpricePct     *float64 `json:"overprice_pct,omitempty"`
 		} `json:"items"`
 	} `json:"datos"`
 }
 
-func (c *PharmacyClientImpl) GetProductAvailability(ctx context.Context, productID string) ([]services.PharmacyInventoryItem, error) {
+func (c *PharmacyClientImpl) GetProductAvailability(ctx context.Context, productID string, geo services.AvailabilityGeo) ([]services.PharmacyInventoryItem, error) {
 	url := fmt.Sprintf("%s/api/v1/pharmacies/inventory/product/%s", c.baseURL, productID)
+	if geo.IsActive() {
+		// pharmacy-service acepta lat/lng/radius_km opcionales (HU-014).
+		q := neturl.Values{}
+		q.Set("lat", strconv.FormatFloat(geo.Lat, 'f', -1, 64))
+		q.Set("lng", strconv.FormatFloat(geo.Lng, 'f', -1, 64))
+		if geo.RadiusKm > 0 {
+			q.Set("radius_km", strconv.FormatFloat(geo.RadiusKm, 'f', -1, 64))
+		}
+		url = url + "?" + q.Encode()
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -82,11 +101,18 @@ func (c *PharmacyClientImpl) GetProductAvailability(ctx context.Context, product
 	items := make([]services.PharmacyInventoryItem, len(pharmacyResp.Data.Items))
 	for i, item := range pharmacyResp.Data.Items {
 		items[i] = services.PharmacyInventoryItem{
-			PharmacyID:   item.PharmacyID,
-			PharmacyName: item.PharmacyName,
-			Stock:        item.Stock,
-			Price:        item.Price,
-			IsAvailable:  item.IsAvailable,
+			PharmacyID:       item.PharmacyID,
+			PharmacySlug:     item.PharmacySlug,
+			PharmacyName:     item.PharmacyName,
+			PharmacyDistrict: item.PharmacyDistrict,
+			PharmacyAddress:  item.PharmacyAddress,
+			Stock:            item.Stock,
+			Price:            item.Price,
+			IsAvailable:      item.IsAvailable,
+			DistanceKm:       item.DistanceKm,
+			DistrictAvgPrice: item.DistrictAvgPrice,
+			IsOverpriced:     item.IsOverpriced,
+			OverpricePct:     item.OverpricePct,
 		}
 	}
 

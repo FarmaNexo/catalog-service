@@ -36,6 +36,8 @@ func (h *SearchProductsHandler) Handle(ctx context.Context, query queries.Search
 		Query:                query.Query,
 		CategoryID:           query.CategoryID,
 		BrandID:              query.BrandID,
+		ActiveIngredient:     query.ActiveIngredient,
+		ExcludeID:            query.ExcludeID,
 		RequiresPrescription: query.RequiresPrescription,
 		IsActive:             &isActive,
 		Page:                 page,

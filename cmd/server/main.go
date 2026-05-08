@@ -142,6 +142,9 @@ func main() {
 	getProductHandler := handlers.NewGetProductHandler(productRepo, cacheService, logger)
 	mediator.RegisterHandler(med, getProductHandler)
 
+	getProductBySlugHandler := handlers.NewGetProductBySlugHandler(productRepo, cacheService, logger)
+	mediator.RegisterHandler(med, getProductBySlugHandler)
+
 	searchProductsHandler := handlers.NewSearchProductsHandler(productRepo, logger)
 	mediator.RegisterHandler(med, searchProductsHandler)
 
