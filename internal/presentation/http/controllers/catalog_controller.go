@@ -147,6 +147,31 @@ func (c *CatalogController) GetProductBySlug(w http.ResponseWriter, r *http.Requ
 	c.respondJSON(w, response)
 }
 
+// GetProductBySource godoc
+// @Summary      Obtener producto por clave natural DIGEMID
+// @Description  Lookup interno por (source_product_code, concentration). Usado por pharmacy-service para resolver eventos INVENTORY_DISCOVERED a un product_id local.
+// @Tags         Products
+// @Accept       json
+// @Produce      json
+// @Param        code           query    int     true  "DIGEMID source_product_code"
+// @Param        concentration  query    string  true  "Concentración (ej. '500 MG')"
+// @Success      200  {object}  common.ApiResponse[responses.ProductResponse]
+// @Failure      400  {object}  common.ApiResponse[responses.ProductResponse]
+// @Failure      404  {object}  common.ApiResponse[responses.ProductResponse]
+// @Router       /api/v1/products/by-source [get]
+func (c *CatalogController) GetProductBySource(w http.ResponseWriter, r *http.Request) {
+	codeStr := r.URL.Query().Get("code")
+	concentration := r.URL.Query().Get("concentration")
+	code, _ := strconv.Atoi(codeStr) // 0 si vacío/inválido — el handler lo valida
+
+	query := queries.GetProductBySourceQuery{
+		SourceProductCode: code,
+		Concentration:     concentration,
+	}
+	response, _ := mediator.Send[queries.GetProductBySourceQuery, responses.ProductResponse](r.Context(), c.mediator, query)
+	c.respondJSON(w, response)
+}
+
 // SearchProducts godoc
 // @Summary      Búsqueda avanzada de productos
 // @Description  Busca productos por nombre, ingrediente activo, categoría, marca

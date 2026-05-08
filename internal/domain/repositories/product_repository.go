@@ -30,6 +30,23 @@ type PaginatedResult struct {
 	TotalPages int
 }
 
+// ProductUpsertParams — payload para UpsertBySource. Refleja los campos del
+// PRODUCT_DISCOVERED del scraper. La clave UPSERT es
+// (source_product_code, concentration), definida en migration 000004.
+type ProductUpsertParams struct {
+	SourceProductCode    int
+	CanonicalName        string
+	ActiveIngredient     string
+	Concentration        string
+	Form                 string
+	SourceFormCode       string
+	Presentation         string
+	RegistryNumber       string
+	Manufacturer         string
+	Holder               string
+	RequiresPrescription bool
+}
+
 // ProductRepository interfaz del repositorio de productos
 type ProductRepository interface {
 	Create(ctx context.Context, product *entities.Product) error
@@ -38,7 +55,15 @@ type ProductRepository interface {
 	FindBySlug(ctx context.Context, slug string) (*entities.Product, error)
 	FindBySKU(ctx context.Context, sku string) (*entities.Product, error)
 	FindByBarcode(ctx context.Context, barcode string) (*entities.Product, error)
+	// FindBySourceCode busca un producto por su clave natural DIGEMID
+	// (source_product_code + concentration). Lo usa pharmacy-service via
+	// HTTP para resolver inventory events.
+	FindBySourceCode(ctx context.Context, sourceProductCode int, concentration string) (*entities.Product, error)
 	Update(ctx context.Context, product *entities.Product) error
+	// UpsertBySource hace INSERT ... ON CONFLICT (source_product_code, concentration)
+	// DO UPDATE. Retorna el id (UUID) del producto resultante. Usado por el
+	// consumer SQS de PRODUCT_DISCOVERED.
+	UpsertBySource(ctx context.Context, params ProductUpsertParams) (string, error)
 	SoftDelete(ctx context.Context, id string) error
 	List(ctx context.Context, page, limit int, sort string) (*PaginatedResult, error)
 	Search(ctx context.Context, params ProductSearchParams) (*PaginatedResult, error)

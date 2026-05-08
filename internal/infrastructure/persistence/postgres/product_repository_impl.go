@@ -3,7 +3,10 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"math"
+	"regexp"
+	"strings"
 
 	"github.com/farmanexo/catalog-service/internal/domain/entities"
 	"github.com/farmanexo/catalog-service/internal/domain/repositories"
@@ -91,8 +94,111 @@ func (r *ProductRepositoryImpl) FindByBarcode(ctx context.Context, barcode strin
 	return &product, nil
 }
 
+// FindBySourceCode busca un producto por (source_product_code, concentration).
+// Se usa desde pharmacy-service (HTTP) para resolver inventory events.
+func (r *ProductRepositoryImpl) FindBySourceCode(ctx context.Context, sourceProductCode int, concentration string) (*entities.Product, error) {
+	var product entities.Product
+	err := r.db.WithContext(ctx).
+		Where("source_product_code = ? AND concentration = ? AND deleted_at IS NULL", sourceProductCode, concentration).
+		First(&product).Error
+	if err != nil {
+		return nil, err
+	}
+	return &product, nil
+}
+
 func (r *ProductRepositoryImpl) Update(ctx context.Context, product *entities.Product) error {
 	return r.db.WithContext(ctx).Save(product).Error
+}
+
+// UpsertBySource hace INSERT ... ON CONFLICT (source_product_code, concentration) DO UPDATE.
+// Idempotente: el mismo evento procesado dos veces deja la fila igual (UPDATE de
+// los mismos valores). Retorna el id (UUID) del producto resultante.
+//
+// Reglas de merge:
+//   - name → siempre se sobrescribe con el valor del evento (canonical_name DIGEMID).
+//   - registry_number / manufacturer / form / etc → COALESCE(EXCLUDED, existing) =
+//     no se borra un valor previo si el evento trae vacío.
+//   - requires_prescription → OR lógico (si alguna fuente lo marcó true, queda true).
+//   - sku → registry_number si existe; sino se fabrica DIGEMID-{code}-{form}-{slug-conc}.
+//   - slug → incluye source_product_code para evitar colisiones entre marcas con
+//     mismo (name, concentration, form).
+func (r *ProductRepositoryImpl) UpsertBySource(ctx context.Context, p repositories.ProductUpsertParams) (string, error) {
+	slug := buildProductSlugWithSource(p.CanonicalName, p.Concentration, p.SourceFormCode, p.SourceProductCode)
+	manufacturer := firstNonEmptyStr(p.Manufacturer, p.Holder)
+
+	var sku string
+	if p.RegistryNumber != "" {
+		sku = p.RegistryNumber
+	} else {
+		sku = fmt.Sprintf("DIGEMID-%d-%s-%s", p.SourceProductCode, p.SourceFormCode, slugify(p.Concentration))
+	}
+
+	var resultID string
+	err := r.db.WithContext(ctx).Raw(`
+		INSERT INTO catalog.products (
+			name, slug, description, active_ingredient,
+			presentation, concentration, form, registry_number,
+			manufacturer, source_product_code,
+			requires_prescription, sku, is_active, created_at, updated_at
+		) VALUES (
+			?, ?, '', NULLIF(?, ''),
+			NULLIF(?, ''), ?, NULLIF(?, ''), NULLIF(?, ''),
+			NULLIF(?, ''), ?,
+			?, NULLIF(?, ''), true, NOW(), NOW()
+		)
+		ON CONFLICT (source_product_code, concentration)
+		WHERE source_product_code IS NOT NULL
+		DO UPDATE SET
+			name                  = EXCLUDED.name,
+			active_ingredient     = COALESCE(EXCLUDED.active_ingredient, catalog.products.active_ingredient),
+			presentation          = COALESCE(EXCLUDED.presentation, catalog.products.presentation),
+			form                  = COALESCE(EXCLUDED.form, catalog.products.form),
+			registry_number       = COALESCE(EXCLUDED.registry_number, catalog.products.registry_number),
+			manufacturer          = COALESCE(EXCLUDED.manufacturer, catalog.products.manufacturer),
+			requires_prescription = EXCLUDED.requires_prescription OR catalog.products.requires_prescription,
+			sku                   = COALESCE(EXCLUDED.sku, catalog.products.sku),
+			updated_at            = NOW()
+		RETURNING id::text
+	`,
+		p.CanonicalName, slug, p.ActiveIngredient,
+		p.Presentation, p.Concentration, p.Form, p.RegistryNumber,
+		manufacturer, p.SourceProductCode,
+		p.RequiresPrescription, sku,
+	).Scan(&resultID).Error
+	if err != nil {
+		return "", err
+	}
+	if resultID == "" {
+		return "", fmt.Errorf("UPSERT no retornó id (source_product_code=%d, concentration=%s)", p.SourceProductCode, p.Concentration)
+	}
+	return resultID, nil
+}
+
+// ----- Helpers internos para UpsertBySource -----
+
+var slugProductReplacer = regexp.MustCompile(`[^a-z0-9]+`)
+
+func slugify(s string) string {
+	s = strings.ToLower(s)
+	s = slugProductReplacer.ReplaceAllString(s, "-")
+	return strings.Trim(s, "-")
+}
+
+// buildProductSlugWithSource agrega source_product_code al slug para asegurar
+// unicidad entre marcas con mismo (name, concentration, form).
+func buildProductSlugWithSource(name, concent, formCode string, sourceCode int) string {
+	base := slugify(strings.Join([]string{name, concent, formCode}, "-"))
+	return fmt.Sprintf("%s-%d", base, sourceCode)
+}
+
+func firstNonEmptyStr(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func (r *ProductRepositoryImpl) SoftDelete(ctx context.Context, id string) error {

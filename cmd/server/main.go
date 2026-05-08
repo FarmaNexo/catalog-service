@@ -163,6 +163,16 @@ func main() {
 	getProductByBarcodeHandler := handlers.NewGetProductByBarcodeHandler(productRepo, cacheService, logger)
 	mediator.RegisterHandler(med, getProductByBarcodeHandler)
 
+	// Tier 5 — lookup por (source_product_code, concentration). Llamado por
+	// pharmacy-service via HTTP para resolver eventos INVENTORY_DISCOVERED.
+	getProductBySourceHandler := handlers.NewGetProductBySourceHandler(productRepo, logger)
+	mediator.RegisterHandler(med, getProductBySourceHandler)
+
+	// Tier 5 — handler que UPSERTea PRODUCT_DISCOVERED desde el SQS consumer.
+	// NO se registra en el mediator (no hay request HTTP detrás): se invoca
+	// directamente desde el consumer.
+	upsertProductFromEventHandler := handlers.NewUpsertProductFromEventHandler(productRepo, logger)
+
 	// ========================================
 	// HANDLERS - Drug Interactions
 	// ========================================
@@ -257,6 +267,19 @@ func main() {
 	router := routes.SetupRoutes(catalogController, authMiddleware)
 
 	// ========================================
+	// SQS Scraper Consumer (Tier 5)
+	// Consume PRODUCT_DISCOVERED de farmanexo-{env}-scraper-product-events
+	// y los UPSERTea en catalog.products via UpsertBySource.
+	// ========================================
+	scraperConsumer, err := messaging.NewSQSScraperConsumer(cfg.AWS, cfg.SQS, upsertProductFromEventHandler, logger)
+	if err != nil {
+		logger.Fatal("Error inicializando SQS ScraperConsumer", zap.Error(err))
+	}
+	scraperConsumerCtx, scraperConsumerCancel := context.WithCancel(context.Background())
+	defer scraperConsumerCancel()
+	scraperConsumer.Start(scraperConsumerCtx)
+
+	// ========================================
 	// SERVIDOR HTTP
 	// ========================================
 	server := &http.Server{
@@ -288,6 +311,8 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
+
+	scraperConsumer.Stop()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("Error en shutdown", zap.Error(err))

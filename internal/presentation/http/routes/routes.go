@@ -69,6 +69,9 @@ func SetupRoutes(
 			r.Post("/search", catalogController.SearchProducts)
 			r.Get("/barcode/{barcode}", catalogController.GetProductByBarcode)
 			r.Get("/slug/{slug}", catalogController.GetProductBySlug)
+			// Lookup interno desde pharmacy-service (Tier 5 — eventos INVENTORY_DISCOVERED).
+			// Path estático ANTES de /{id} para evitar shadowing.
+			r.Get("/by-source", catalogController.GetProductBySource)
 			r.Get("/{id}", catalogController.GetProduct)
 			r.Get("/{id}/interactions", catalogController.ListDrugInteractions)
 			r.Get("/{id}/frequently-bought-together", catalogController.ListFrequentlyBoughtTogether)

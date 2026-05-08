@@ -38,6 +38,8 @@ aws:
 
 sqs:
   catalog_events_queue_url: "${SQS_CATALOG_EVENTS_URL}"
+  # INBOUND: PRODUCT_DISCOVERED publicado por scraper-service.
+  scraper_product_events_queue_url: "${SQS_SCRAPER_PRODUCT_EVENTS_QUEUE_URL}"
 
 s3:
   products_bucket: "farmanexo-products"

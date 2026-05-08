@@ -87,7 +87,12 @@ type AWSConfig struct {
 
 // SQSConfig configuración de SQS
 type SQSConfig struct {
+	// CatalogEventsQueueURL — eventos OUTBOUND publicados por catalog-service
+	// (PRODUCT_CREATED/UPDATED/DELETED).
 	CatalogEventsQueueURL string `mapstructure:"catalog_events_queue_url"`
+	// ScraperProductEventsQueueURL — cola INBOUND de PRODUCT_DISCOVERED del
+	// scraper. Tier 5 (Exporter Plan B).
+	ScraperProductEventsQueueURL string `mapstructure:"scraper_product_events_queue_url"`
 }
 
 // S3Config configuración de S3
