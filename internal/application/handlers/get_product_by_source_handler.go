@@ -26,8 +26,10 @@ func NewGetProductBySourceHandler(productRepo repositories.ProductRepository, lo
 }
 
 func (h *GetProductBySourceHandler) Handle(ctx context.Context, query queries.GetProductBySourceQuery) (*common.ApiResponse[responses.ProductResponse], error) {
-	if query.SourceProductCode == 0 || query.Concentration == "" {
-		return common.BadRequestResponse[responses.ProductResponse]("VAL_001", "source_product_code y concentration son requeridos"), nil
+	// Concentration vacía es válida: DIGEMID no siempre la trae y catalog.products
+	// la persiste como string vacío. Solo validamos que el code esté presente.
+	if query.SourceProductCode == 0 {
+		return common.BadRequestResponse[responses.ProductResponse]("VAL_001", "source_product_code es requerido"), nil
 	}
 
 	product, err := h.productRepo.FindBySourceCode(ctx, query.SourceProductCode, query.Concentration)

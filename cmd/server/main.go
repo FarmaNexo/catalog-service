@@ -270,14 +270,23 @@ func main() {
 	// SQS Scraper Consumer (Tier 5)
 	// Consume PRODUCT_DISCOVERED de farmanexo-{env}-scraper-product-events
 	// y los UPSERTea en catalog.products via UpsertBySource.
+	//
+	// En entornos sin scraper (local dev) la env var no está seteada y
+	// arrancamos sin consumer — el servicio HTTP sigue funcionando normal.
 	// ========================================
-	scraperConsumer, err := messaging.NewSQSScraperConsumer(cfg.AWS, cfg.SQS, upsertProductFromEventHandler, logger)
-	if err != nil {
-		logger.Fatal("Error inicializando SQS ScraperConsumer", zap.Error(err))
-	}
+	var scraperConsumer *messaging.SQSScraperConsumer
 	scraperConsumerCtx, scraperConsumerCancel := context.WithCancel(context.Background())
 	defer scraperConsumerCancel()
-	scraperConsumer.Start(scraperConsumerCtx)
+	if cfg.SQS.ScraperProductEventsQueueURL == "" {
+		logger.Warn("SQS_SCRAPER_PRODUCT_EVENTS_QUEUE_URL no configurada, skip ScraperConsumer (modo local sin scraper)")
+	} else {
+		var err error
+		scraperConsumer, err = messaging.NewSQSScraperConsumer(cfg.AWS, cfg.SQS, upsertProductFromEventHandler, logger)
+		if err != nil {
+			logger.Fatal("Error inicializando SQS ScraperConsumer", zap.Error(err))
+		}
+		scraperConsumer.Start(scraperConsumerCtx)
+	}
 
 	// ========================================
 	// SERVIDOR HTTP
@@ -312,7 +321,9 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
 
-	scraperConsumer.Stop()
+	if scraperConsumer != nil {
+		scraperConsumer.Stop()
+	}
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("Error en shutdown", zap.Error(err))
